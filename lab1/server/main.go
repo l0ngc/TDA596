@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 var listeningPort string
 var maxProcesses int
+var debug string // Global option for setting debug or not
 
 func main() {
 	if len(os.Args) < 2 {
@@ -42,8 +44,6 @@ func main() {
 }
 
 func requestHandler(conn net.Conn) {
-	// echo -e "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
-	// echo -e "POST /somepath HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 11\r\n\r\nhello=world" | nc localhost 8083
 	defer conn.Close()
 	fmt.Println("Handling request...")
 
@@ -65,8 +65,36 @@ func requestHandler(conn net.Conn) {
 
 }
 
+// Design of Handler
+// Inputs:
+// 1. writer buffer: for writing back the response, message or data
+// 2. Request pointer: for acquire the content of the request
+// Outputs:
+// 1. return the response code, represending whether success or not of this connect application
 func getHandler(request *http.Request) {
+	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
+	// TODO: Return the targeted request resource for users
 	fmt.Println("Handler for get message")
+
+	url := request.URL.Path
+	local_path, _ := os.Getwd()
+	global_path := local_path + url
+
+	if debug == "true" {
+		fmt.Println("The url PATH of request: ", url)
+		fmt.Println("The current workdir of server: ", local_path)
+		fmt.Println("Global path of target file: ", global_path)
+	}
+
+	file, _ := os.Open(global_path)
+	defer file.Close()
+	content, err := io.ReadAll(file)
+	fileContent := string(content)
+	fmt.Println("File content: ", fileContent)
+	fmt.Println("Read error code: ", err)
+
+	// http.ServeFile(request.Context().ResponseWriter, request, global_path)
+	// now read the file on the global_path and return it by serveFile of http package,
 }
 
 func postHandler(request *http.Request) {
