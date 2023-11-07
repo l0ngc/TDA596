@@ -3,25 +3,16 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 )
 
 var listeningPort string
 var maxProcesses int
 var debug string // Global option for setting debug or not
-
-type response struct {
-	status  string
-	headers string
-	body    string
-}
-
-func (r response) String() string {
-	res := r.status + "\n" + r.headers + "\n" + r.body + "\n"
-	return res
-}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -81,44 +72,63 @@ func requestHandler(conn net.Conn) {
 // 2. Request pointer: for acquire the content of the request
 // Outputs:
 // 1. return the response code, represending whether success or not of this connect application
-func getHandler(conn net.Conn, request *http.Request) {
-	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
-	// TODO: Return the targeted request resource for users
-	fmt.Println("Handler for get message")
+// func getHandler(conn net.Conn, request *http.Request) {
+// 	content := "I want to fly"
+// 	response := request.Response
+// 	response.StatusCode = http.StatusOK
+// 	response.ContentLength = 50
+// 	response.Body = io.NopCloser(strings.NewReader(string(content)))
 
-	tmp := getResponseWrapper(request)
-	conn.Write([]byte(tmp))
+// }
+func getHandler(conn net.Conn, request *http.Request) {
+
+	// 创建一个新的 HTTP 响应
+	// response := &http.Response{
+	// 	Status:     http.StatusText(http.StatusOK),
+	// 	StatusCode: http.StatusOK,
+	// 	Body:       ioutil.NopCloser(strings.NewReader(content)),
+	// }
+
+	response := getResponseWrapper(request)
+	// 将响应写回连接
+	response.Write(conn)
 }
 
-func getResponseWrapper(request *http.Request) string {
+func getResponseWrapper(request *http.Request) *http.Response {
 	// wrap up one response body
 	url := request.URL.Path
-	local_path, _ := os.Getwd()
-	file_server_path := local_path + url
+	localPath, _ := os.Getwd()
+	fileServerPath := localPath + url
 
-	content, err := os.ReadFile(file_server_path)
+	content, err := os.ReadFile(fileServerPath)
 	fileContent := string(content)
+
+	// debug
 	if debug == "true" {
 		fmt.Println("The url PATH of request: ", url)
-		fmt.Println("The current workdir of server: ", local_path)
-		fmt.Println("Global path of target file: ", file_server_path)
+		fmt.Println("The current workdir of server: ", localPath)
+		fmt.Println("Global path of target file: ", fileServerPath)
 		fmt.Println("err: ", err)
 	}
 
-	// wrape one response body
 	if err != nil {
-		status := "HTTP/1.1 404 Not Found"
-		header := "404:header"
-		body := "404:body"
-		resp := response{status, header, body}
-		return resp.String()
-	} else {
-		status := "HTTP/1.1 404 Not Found"
-		header := "404:header"
-		body := fileContent
-		resp := response{status, header, body}
-		return resp.String()
+		// fault return
+		response := &http.Response{
+			Status:     http.StatusText(http.StatusNotFound),
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader("File not found")),
+		}
+		return response
 	}
+
+	// right return
+	response := &http.Response{
+		Status:     http.StatusText(http.StatusOK),
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(fileContent)),
+	}
+
+	return response
 }
 
 func postHandler(conn net.Conn, request *http.Request) {
