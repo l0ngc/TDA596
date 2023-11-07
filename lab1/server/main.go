@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -12,6 +11,17 @@ import (
 var listeningPort string
 var maxProcesses int
 var debug string // Global option for setting debug or not
+
+type response struct {
+	status  string
+	headers string
+	body    string
+}
+
+func (r response) String() string {
+	res := r.status + "\n" + r.headers + "\n" + r.body + "\n"
+	return res
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -58,45 +68,59 @@ func requestHandler(conn net.Conn) {
 	fmt.Println("Type of connection request: ", request.Method)
 	switch request.Method {
 	case "GET":
-		getHandler(request)
+		getHandler(conn, request)
 	case "POST":
-		postHandler(request)
+		postHandler(conn, request)
 	}
 
 }
 
 // Design of Handler
 // Inputs:
-// 1. writer buffer: for writing back the response, message or data
+// 1. connection: response should be write back from the same coonection channel
 // 2. Request pointer: for acquire the content of the request
 // Outputs:
 // 1. return the response code, represending whether success or not of this connect application
-func getHandler(request *http.Request) {
+func getHandler(conn net.Conn, request *http.Request) {
 	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
 	// TODO: Return the targeted request resource for users
 	fmt.Println("Handler for get message")
 
+	tmp := getResponseWrapper(request)
+	conn.Write([]byte(tmp))
+}
+
+func getResponseWrapper(request *http.Request) string {
+	// wrap up one response body
 	url := request.URL.Path
 	local_path, _ := os.Getwd()
-	global_path := local_path + url
+	file_server_path := local_path + url
 
+	content, err := os.ReadFile(file_server_path)
+	fileContent := string(content)
 	if debug == "true" {
 		fmt.Println("The url PATH of request: ", url)
 		fmt.Println("The current workdir of server: ", local_path)
-		fmt.Println("Global path of target file: ", global_path)
+		fmt.Println("Global path of target file: ", file_server_path)
+		fmt.Println("err: ", err)
 	}
 
-	file, _ := os.Open(global_path)
-	defer file.Close()
-	content, err := io.ReadAll(file)
-	fileContent := string(content)
-	fmt.Println("File content: ", fileContent)
-	fmt.Println("Read error code: ", err)
-
-	// http.ServeFile(request.Context().ResponseWriter, request, global_path)
-	// now read the file on the global_path and return it by serveFile of http package,
+	// wrape one response body
+	if err != nil {
+		status := "HTTP/1.1 404 Not Found"
+		header := "404:header"
+		body := "404:body"
+		resp := response{status, header, body}
+		return resp.String()
+	} else {
+		status := "HTTP/1.1 404 Not Found"
+		header := "404:header"
+		body := fileContent
+		resp := response{status, header, body}
+		return resp.String()
+	}
 }
 
-func postHandler(request *http.Request) {
+func postHandler(conn net.Conn, request *http.Request) {
 	fmt.Println("Handler for post message")
 }
