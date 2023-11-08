@@ -2,8 +2,8 @@
 
 ## TODO
 - 实现最多N个连接
-- 写post的handler
-- 
+- ~~写post的handler~~
+- get和post的异常情况处理
 ## compile Snippet
 ### Server
 // enable debugging
