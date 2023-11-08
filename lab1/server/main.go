@@ -15,14 +15,15 @@ var maxProcesses int
 var debug string // Global option for setting debug or not
 
 func main() {
+	// read port
 	if len(os.Args) < 2 {
-		listeningPort = ":8080"
+		listeningPort = ":8083"
 	} else {
 		listeningPort = os.Args[1]
 	}
 
 	fmt.Printf("Listening on port%v\n", listeningPort)
-
+	// init tcp listening
 	listener, err := net.Listen("tcp", listeningPort)
 	if err != nil {
 		fmt.Println("Error listening:", err)
@@ -31,7 +32,7 @@ func main() {
 	defer listener.Close()
 
 	fmt.Println("Connection initialized successfully")
-
+	// init listening connection
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -57,6 +58,7 @@ func requestHandler(conn net.Conn) {
 	}
 	// debug, now the basic connection is handled, then specify GET and POST handler for different request
 	fmt.Println("Type of connection request: ", request.Method)
+	// distribute request to target handler
 	switch request.Method {
 	case "GET":
 		getHandler(conn, request)
@@ -74,15 +76,7 @@ func requestHandler(conn net.Conn) {
 // 1. return the response code, represending whether success or not of this connect application
 func getHandler(conn net.Conn, request *http.Request) {
 	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
-	// 创建一个新的 HTTP 响应
-	// response := &http.Response{
-	// 	Status:     http.StatusText(http.StatusOK),
-	// 	StatusCode: http.StatusOK,
-	// 	Body:       ioutil.NopCloser(strings.NewReader(content)),
-	// }
-
 	response := getResponseWrapper(request)
-	// 将响应写回连接
 	response.Write(conn)
 }
 
@@ -114,8 +108,8 @@ func getResponseWrapper(request *http.Request) *http.Response {
 func postHandler(conn net.Conn, request *http.Request) {
 	fmt.Println("Handler for post message")
 	// echo -e "POST /download/test HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 11\r\n\r\nhello,world!" | nc localhost 8083
+
 	response := postResponseWrapper(request)
-	// 将响应写回连接
 	response.Write(conn)
 }
 
@@ -126,7 +120,17 @@ func postResponseWrapper(request *http.Request) *http.Response {
 	fmt.Println("url: ", fileSavePath)
 	// create local file
 	content, err := os.Create(fileSavePath)
+
+	// debug
+	if debug == "true" {
+		fmt.Println("The url PATH of request: ", url)
+		fmt.Println("The current workdir of server: ", localPath)
+		fmt.Println("Global path of target file: ", fileSavePath)
+		fmt.Println("err: ", err)
+	}
+
 	defer content.Close()
+
 	if err != nil {
 		fmt.Println("local file created failed")
 		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
@@ -135,6 +139,7 @@ func postResponseWrapper(request *http.Request) *http.Response {
 
 	// Copy the response body to the local file.
 	_, err = io.Copy(content, request.Body)
+
 	if err != nil {
 		fmt.Println("Error copying response to file:", err)
 		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
