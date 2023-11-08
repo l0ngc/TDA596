@@ -72,16 +72,8 @@ func requestHandler(conn net.Conn) {
 // 2. Request pointer: for acquire the content of the request
 // Outputs:
 // 1. return the response code, represending whether success or not of this connect application
-// func getHandler(conn net.Conn, request *http.Request) {
-// 	content := "I want to fly"
-// 	response := request.Response
-// 	response.StatusCode = http.StatusOK
-// 	response.ContentLength = 50
-// 	response.Body = io.NopCloser(strings.NewReader(string(content)))
-
-// }
 func getHandler(conn net.Conn, request *http.Request) {
-
+	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
 	// 创建一个新的 HTTP 响应
 	// response := &http.Response{
 	// 	Status:     http.StatusText(http.StatusOK),
@@ -95,7 +87,7 @@ func getHandler(conn net.Conn, request *http.Request) {
 }
 
 func getResponseWrapper(request *http.Request) *http.Response {
-	// wrap up one response body
+	// wrap up response body based on the Request
 	url := request.URL.Path
 	localPath, _ := os.Getwd()
 	fileServerPath := localPath + url
@@ -112,25 +104,51 @@ func getResponseWrapper(request *http.Request) *http.Response {
 	}
 
 	if err != nil {
-		// fault return
-		response := &http.Response{
-			Status:     http.StatusText(http.StatusNotFound),
-			StatusCode: http.StatusNotFound,
-			Body:       io.NopCloser(strings.NewReader("File not found")),
-		}
+		response := createResponse(http.StatusNotFound, "File not found")
 		return response
 	}
-
-	// right return
-	response := &http.Response{
-		Status:     http.StatusText(http.StatusOK),
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader(fileContent)),
-	}
-
+	response := createResponse(http.StatusOK, fileContent)
 	return response
 }
 
 func postHandler(conn net.Conn, request *http.Request) {
 	fmt.Println("Handler for post message")
+	// echo -e "POST /download/test HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 11\r\n\r\nhello,world!" | nc localhost 8083
+	response := postResponseWrapper(request)
+	// 将响应写回连接
+	response.Write(conn)
+}
+
+func postResponseWrapper(request *http.Request) *http.Response {
+	url := request.URL.Path
+	localPath, _ := os.Getwd()
+	fileSavePath := localPath + url
+	fmt.Println("url: ", fileSavePath)
+	// create local file
+	content, err := os.Create(fileSavePath)
+	defer content.Close()
+	if err != nil {
+		fmt.Println("local file created failed")
+		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+		return response
+	}
+
+	// Copy the response body to the local file.
+	_, err = io.Copy(content, request.Body)
+	if err != nil {
+		fmt.Println("Error copying response to file:", err)
+		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+		return response
+	}
+
+	response := createResponse(http.StatusCreated, "File created successfully")
+	return response
+}
+
+func createResponse(statusCode int, message string) *http.Response {
+	return &http.Response{
+		Status:     http.StatusText(statusCode),
+		StatusCode: statusCode,
+		Body:       io.NopCloser(strings.NewReader(message)),
+	}
 }
