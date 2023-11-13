@@ -13,6 +13,7 @@ import (
 var listeningPort string
 var maxProcesses int
 var debug string // Global option for setting debug or not
+var stringfileTypes = []string{"html", "txt", "gif", "jpeg", "jpg", "css"}
 
 func main() {
 	// read port
@@ -91,28 +92,29 @@ func getResponseWrapper(request *http.Request) *http.Response {
 	url := request.URL.Path
 	localPath, _ := os.Getwd()
 	fileServerPath := localPath + url
-
-	content, err := os.ReadFile(fileServerPath)
-	fileContent := string(content)
 	lastDotIndex := strings.LastIndex(url, ".") + 1
 
 	contentType := url[lastDotIndex:]
-	fmt.Println("Content type: ", contentType)
 
-	// debug
 	if debug == "true" {
 		fmt.Println("The url PATH of request: ", url)
+		fmt.Println("Current contentType is: ", contentType)
 		fmt.Println("The current workdir of server: ", localPath)
 		fmt.Println("Global path of target file: ", fileServerPath)
-		fmt.Println("err: ", err)
 	}
-
-	if err != nil {
-		response := createResponse(http.StatusNotFound, "Not Implemented!")
+	if isContentTypeSupported(contentType) {
+		content, err := os.ReadFile(fileServerPath)
+		if err != nil {
+			response := createResponse(http.StatusNotFound, "File not Found!")
+			return response
+		}
+		fileContent := string(content)
+		response := createResponse(http.StatusOK, fileContent)
+		return response
+	} else {
+		response := createResponse(http.StatusBadRequest, "Bad Request!")
 		return response
 	}
-	response := createResponse(http.StatusOK, fileContent)
-	return response
 }
 
 func postHandler(conn net.Conn, request *http.Request) {
@@ -128,36 +130,39 @@ func postResponseWrapper(request *http.Request) *http.Response {
 	localPath, _ := os.Getwd()
 	fileSavePath := localPath + url
 	fmt.Println("url: ", fileSavePath)
-	// create local file
-	content, err := os.Create(fileSavePath)
-
 	// debug
 	if debug == "true" {
 		fmt.Println("The url PATH of request: ", url)
 		fmt.Println("The current workdir of server: ", localPath)
 		fmt.Println("Global path of target file: ", fileSavePath)
-		fmt.Println("err: ", err)
 	}
+	lastDotIndex := strings.LastIndex(url, ".") + 1
+	contentType := url[lastDotIndex:]
+	if isContentTypeSupported(contentType) {
+		content, err := os.Create(fileSavePath)
+		defer content.Close()
+		if err != nil {
+			fmt.Println("local file created failed")
+			response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+			return response
+		}
 
-	defer content.Close()
+		// Copy the response body to the local file.
+		_, err = io.Copy(content, request.Body)
 
-	if err != nil {
-		fmt.Println("local file created failed")
-		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+		if err != nil {
+			fmt.Println("Error copying response to file:", err)
+			response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+			return response
+		}
+		response := createResponse(http.StatusCreated, "File created successfully")
+		return response
+	} else {
+		response := createResponse(http.StatusBadRequest, "Bad Request!")
 		return response
 	}
+	// create local file
 
-	// Copy the response body to the local file.
-	_, err = io.Copy(content, request.Body)
-
-	if err != nil {
-		fmt.Println("Error copying response to file:", err)
-		response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
-		return response
-	}
-
-	response := createResponse(http.StatusCreated, "File created successfully")
-	return response
 }
 
 func createResponse(statusCode int, message string) *http.Response {
@@ -166,4 +171,13 @@ func createResponse(statusCode int, message string) *http.Response {
 		StatusCode: statusCode,
 		Body:       io.NopCloser(strings.NewReader(message)),
 	}
+}
+
+func isContentTypeSupported(contentType string) bool {
+	for _, fileType := range stringfileTypes {
+		if strings.Contains(contentType, fileType) {
+			return true
+		}
+	}
+	return false
 }
