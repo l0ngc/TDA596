@@ -1,16 +1,16 @@
-## Lab Requirements
-
-## TODO
-- 实现最多N个连接
-- ~~写post的handler~~
-- get和post的异常情况处理
-## compile Snippet
-### Server
+### Server build
+cd ./server/
 // enable debugging
 go build -ldflags "-X main.debug=false" main.go
 // without debugging
 go build -ldflags "-X main.debug=true" main.go
-
+### Start Server
+./main 8080
+### Proxy build
+cd ./proxy/
+go build main.go
+### Start Server
+./main 8081
 
 ### Listening 
 When your server starts, the first thing that it will need to do is establish a socket connection that it can use to listen for incoming connections. Your server should listen on the port specified from the command line and wait for incoming client connections. Each new client request is accepted, and a new Go routine is spawned to handle the request. To avoid overwhelming your server, you should not create more than a reasonable number of child processes (for this assignment, use at most 10). In case an additional child process would break this limit, your server should wait until one of its ongoing child processes exits before forking a new one to handle the new request. 
