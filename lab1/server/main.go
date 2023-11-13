@@ -36,8 +36,8 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting:", err)
-			continue // handle error appropriately
+			fmt.Println("Port Listen Failed:", err)
+			continue
 		}
 
 		fmt.Println("Connection established")
@@ -98,7 +98,7 @@ func getResponseWrapper(request *http.Request) *http.Response {
 	}
 
 	if err != nil {
-		response := createResponse(http.StatusNotFound, "File not found")
+		response := createResponse(http.StatusNotFound, "Not Implemented!")
 		return response
 	}
 	response := createResponse(http.StatusOK, fileContent)
