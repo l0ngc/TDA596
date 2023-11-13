@@ -2,23 +2,38 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+
+	"golang.org/x/sync/semaphore"
 )
 
 var listeningPort string
-var maxProcesses int
+var maxProcesses int64 = 10
+
+// use semaphore to control max processes
+var sem = semaphore.NewWeighted(maxProcesses)
 var debug string // Global option for setting debug or not
+
 var stringfileTypes = []string{"html", "txt", "gif", "jpeg", "jpg", "css"}
+var contentTypeMapping = map[string]string{
+	"html": "text/html",
+	"txt":  "text/plain",
+	"gif":  "image/gif",
+	"jpeg": "image/jpeg",
+	"jpg":  "image/jpg",
+	"css":  "text/css",
+}
 
 func main() {
 	// read port
 	if len(os.Args) < 2 {
-		listeningPort = ":8083"
+		listeningPort = ":8080"
 	} else {
 		listeningPort = os.Args[1]
 	}
@@ -33,8 +48,11 @@ func main() {
 	defer listener.Close()
 
 	fmt.Println("Connection initialized successfully")
+	ctx := context.Background()
 	// init listening connection
 	for {
+		// sem.acquire(ctx, 1)
+		sem.Acquire(ctx, 1)
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Port Listen Failed:", err)
@@ -48,10 +66,11 @@ func main() {
 
 func requestHandler(conn net.Conn) {
 	defer conn.Close()
+	defer sem.Release(1)
 	fmt.Println("Handling request...")
 
 	// init one buffer, and read info from the connection
-	br := bufio.NewReaderSize(conn, 50*1024*1024) // 50MB buffer
+	br := bufio.NewReaderSize(conn, 50*1024*1024)
 	request, err := http.ReadRequest(br)
 	if err != nil {
 		fmt.Println("Error listening:", err)
@@ -71,7 +90,7 @@ func requestHandler(conn net.Conn) {
 }
 
 func otherHandler(conn net.Conn, request *http.Request) {
-	response := createResponse(http.StatusNotImplemented, "Not Implemented!")
+	response := createResponse(http.StatusNotImplemented, "Not Implemented!", "text/plain")
 	response.Write(conn)
 }
 
@@ -102,17 +121,18 @@ func getResponseWrapper(request *http.Request) *http.Response {
 		fmt.Println("The current workdir of server: ", localPath)
 		fmt.Println("Global path of target file: ", fileServerPath)
 	}
+
 	if isContentTypeSupported(contentType) {
 		content, err := os.ReadFile(fileServerPath)
 		if err != nil {
-			response := createResponse(http.StatusNotFound, "File not Found!")
+			response := createResponse(http.StatusNotFound, "File not Found!", "text/plain")
 			return response
 		}
 		fileContent := string(content)
-		response := createResponse(http.StatusOK, fileContent)
+		response := createResponse(http.StatusOK, fileContent, contentTypeMapping[contentType])
 		return response
 	} else {
-		response := createResponse(http.StatusBadRequest, "Bad Request!")
+		response := createResponse(http.StatusBadRequest, "Bad Request!", "text/plain")
 		return response
 	}
 }
@@ -140,35 +160,38 @@ func postResponseWrapper(request *http.Request) *http.Response {
 	contentType := url[lastDotIndex:]
 	if isContentTypeSupported(contentType) {
 		content, err := os.Create(fileSavePath)
-		defer content.Close()
 		if err != nil {
 			fmt.Println("local file created failed")
-			response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+			response := createResponse(http.StatusInternalServerError, "File not created successfull on server", "text/plain")
 			return response
 		}
+		defer content.Close()
 
 		// Copy the response body to the local file.
 		_, err = io.Copy(content, request.Body)
 
 		if err != nil {
 			fmt.Println("Error copying response to file:", err)
-			response := createResponse(http.StatusInternalServerError, "File not created successfull on server")
+			response := createResponse(http.StatusInternalServerError, "File not created successfull on server", "text/plain")
 			return response
 		}
-		response := createResponse(http.StatusCreated, "File created successfully")
+		response := createResponse(http.StatusCreated, "File created successfully", "text/plain")
 		return response
 	} else {
-		response := createResponse(http.StatusBadRequest, "Bad Request!")
+		response := createResponse(http.StatusBadRequest, "Bad Request!", "text/plain")
 		return response
 	}
 	// create local file
 
 }
 
-func createResponse(statusCode int, message string) *http.Response {
+func createResponse(statusCode int, message string, contentType string) *http.Response {
+	header := make(http.Header)
+	header.Set("Content-Type", contentType)
 	return &http.Response{
 		Status:     http.StatusText(statusCode),
 		StatusCode: statusCode,
+		Header:     header,
 		Body:       io.NopCloser(strings.NewReader(message)),
 	}
 }

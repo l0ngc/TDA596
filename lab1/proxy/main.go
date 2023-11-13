@@ -17,7 +17,7 @@ var debug string // Global option for setting debug or not
 func main() {
 	// read port
 	if len(os.Args) < 2 {
-		listeningPort = ":8084"
+		listeningPort = ":8083"
 	} else {
 		listeningPort = os.Args[1]
 	}
