@@ -64,8 +64,14 @@ func requestHandler(conn net.Conn) {
 		getHandler(conn, request)
 	case "POST":
 		postHandler(conn, request)
+	default:
+		otherHandler(conn, request)
 	}
+}
 
+func otherHandler(conn net.Conn, request *http.Request) {
+	response := createResponse(http.StatusNotImplemented, "Not Implemented!")
+	response.Write(conn)
 }
 
 // Design of Handler
@@ -75,7 +81,7 @@ func requestHandler(conn net.Conn) {
 // Outputs:
 // 1. return the response code, represending whether success or not of this connect application
 func getHandler(conn net.Conn, request *http.Request) {
-	// echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
+	// echo -e "GET /resource/txt/monk.txt HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8083
 	response := getResponseWrapper(request)
 	response.Write(conn)
 }
@@ -88,6 +94,10 @@ func getResponseWrapper(request *http.Request) *http.Response {
 
 	content, err := os.ReadFile(fileServerPath)
 	fileContent := string(content)
+	lastDotIndex := strings.LastIndex(url, ".") + 1
+
+	contentType := url[lastDotIndex:]
+	fmt.Println("Content type: ", contentType)
 
 	// debug
 	if debug == "true" {
