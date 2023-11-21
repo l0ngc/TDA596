@@ -1,10 +1,14 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
 	"net/rpc"
+	"os"
+	"sort"
 )
 
 // Map functions return a slice of KeyValue.
@@ -12,6 +16,11 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
+type ByKey []KeyValue
+
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -29,22 +38,71 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
-	CallTask()
+	fileTasks := CallTask()
+	for _, fileName := range fileTasks {
+		fmt.Println(fileName)
+	}
+	intermediate := []KeyValue{}
+	for _, filename := range fileTasks {
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatalf("cannot open %v", filename)
+		}
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			log.Fatalf("cannot read %v", filename)
+		}
+		file.Close()
+		// fmt.Println(string(content))
+		kva := mapf(filename, string(content))
+		intermediate = append(intermediate, kva...)
+	}
 
+	sort.Sort(ByKey(intermediate))
+	outputFile, err := os.Create("doodle") // Change "doodle" to your desired output file name
+	if err != nil {
+		log.Fatalf("cannot create output file")
+	}
+	defer outputFile.Close()
+
+	enc := json.NewEncoder(outputFile)
+	for _, kv := range intermediate {
+		err := enc.Encode(&kv)
+		if err != nil {
+			log.Fatalf("error encoding JSON: %v", err)
+		}
+	}
+	// oname := "mr-out-1"
+	// ofile, _ := os.Create(oname)
+	// i := 0
+	// for i < len(intermediate) {
+	// 	j := i + 1
+	// 	for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+	// 		j++
+	// 	}
+	// 	values := []string{}
+	// 	for k := i; k < j; k++ {
+	// 		values = append(values, intermediate[k].Value)
+	// 	}
+	// 	output := reducef(intermediate[i].Key, values)
+
+	// 	// this is the correct format for each line of Reduce output.
+	// 	fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+
+	// 	i = j
+	// }
+
+	// ofile.Close()
 }
 
 // example function to show how to make an RPC call to the coordinator.
 //
 // the RPC argument and reply types are defined in rpc.go.
-func CallTask() {
-
+func CallTask() []string {
 	// declare an argument structure.
 	args := TaskAsk{}
-
-	// // fill in the argument(s).
 	args.X = 1
-
-	// // declare a reply structure.
+	// declare a reply structure.
 	reply := TaskReply{}
 
 	ok := call("Coordinator.GetTask", &args, &reply)
@@ -54,6 +112,7 @@ func CallTask() {
 	} else {
 		fmt.Printf("call failed!\n")
 	}
+	return reply.FileNames
 }
 
 func CallExample() {

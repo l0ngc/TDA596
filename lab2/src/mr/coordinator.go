@@ -26,7 +26,7 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 func (c *Coordinator) GetTask(args *TaskAsk, reply *TaskReply) error {
 	// Your code here
 	// take out the N, N = fileNums tasks form c.taskFiles
-	reply.FileNames = c.taskFiles[0]
+	reply.FileNames = c.taskFiles
 	fmt.Println(reply.FileNames)
 	// c.taskFiles = c.taskFiles[1:]
 	return nil
