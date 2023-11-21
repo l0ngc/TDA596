@@ -35,7 +35,6 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
-
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 	fileTasks := CallTask()
@@ -59,6 +58,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	}
 
 	sort.Sort(ByKey(intermediate))
+	// test json store
 	outputFile, err := os.Create("doodle") // Change "doodle" to your desired output file name
 	if err != nil {
 		log.Fatalf("cannot create output file")
@@ -72,6 +72,24 @@ func Worker(mapf func(string, string) []KeyValue,
 			log.Fatalf("error encoding JSON: %v", err)
 		}
 	}
+
+	// test json read
+	inputFile, err := os.Open("doodle") // Change "doodle" to your output file name
+	if err != nil {
+		log.Fatalf("cannot open output file for reading")
+	}
+	defer inputFile.Close()
+
+	kva := []KeyValue{}
+	dec := json.NewDecoder(inputFile)
+	for {
+		var kv KeyValue
+		if err := dec.Decode(&kv); err != nil {
+			break
+		}
+		kva = append(kva, kv)
+	}
+
 	// oname := "mr-out-1"
 	// ofile, _ := os.Create(oname)
 	// i := 0
