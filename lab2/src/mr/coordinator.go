@@ -2,7 +2,6 @@ package mr
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -12,7 +11,7 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-
+	taskFiles []string
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -21,7 +20,15 @@ type Coordinator struct {
 //
 // the RPC argument and reply types are defined in rpc.go.
 func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
+	reply.Y = args.X + 100
+	return nil
+}
+func (c *Coordinator) GetTask(args *TaskAsk, reply *TaskReply) error {
+	// Your code here
+	// take out the N, N = fileNums tasks form c.taskFiles
+	reply.FileNames = c.taskFiles[0]
+	fmt.Println(reply.FileNames)
+	// c.taskFiles = c.taskFiles[1:]
 	return nil
 }
 
@@ -55,25 +62,29 @@ func (c *Coordinator) Done() bool {
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
-	// I want to first print out the files
-	intermediate := []string{}
-	for _, filename := range files {
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Fatalf("cannot open %v", filename)
-		}
-		content, err := ioutil.ReadAll(file)
-		if err != nil {
-			log.Fatalf("cannot read %v", filename)
-		}
-		file.Close()
-		intermediate = append(intermediate, string(content))
-	}
-	fmt.Println(intermediate)
+	c.taskFiles = files
 
 	c.server()
 	return &c
 }
+
+// I want to first print out the files
+// here it could split files to workers, then ask the worker to read the content and do the work
+// so as to reduce the time of transfering files from coordinator to workers
+// intermediate := []string{}
+// for _, filename := range files {
+// 	file, err := os.Open(filename)
+// 	if err != nil {
+// 		log.Fatalf("cannot open %v", filename)
+// 	}
+// 	content, err := ioutil.ReadAll(file)
+// 	if err != nil {
+// 		log.Fatalf("cannot read %v", filename)
+// 	}
+// 	file.Close()
+// 	intermediate = append(intermediate, string(content))
+// }
+// fmt.Println(intermediate)
 
 // func MakeCoordinator(files []string, nReduce int) *Coordinator {
 //     c := Coordinator{}
