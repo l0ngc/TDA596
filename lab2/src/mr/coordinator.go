@@ -26,12 +26,14 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 }
 func (c *Coordinator) GetTask(args *TaskAsk, reply *TaskReply) error {
 	// Your code here
-	// take out the N, N = fileNums tasks form c.taskFiles
+	// start from Map, when all of the Map is finished, then turned into Reduce
+	// now just put ev
 	reply.FileNames = c.taskFiles
 	fmt.Println(reply.FileNames)
 	// c.taskFiles = c.taskFiles[1:]
 	return nil
 }
+
 func (c *Coordinator) GetNReduce(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = c.nReduce
 	return nil
@@ -57,7 +59,9 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
-
+	// 这里用来标记一下目前搞定的任务，我觉得应该是coordinator分布任务，然后worker完成任务，然后worker告诉coordinator完成了任务
+	// 然后coordinator就把这个任务标记为完成了，然后等到所有任务都完成了，就返回true
+	// 所以应该有一个标记，来标记要被map的任务，同时标记要被reduce的任务
 	return ret
 }
 
@@ -72,51 +76,3 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.server()
 	return &c
 }
-
-// I want to first print out the files
-// here it could split files to workers, then ask the worker to read the content and do the work
-// so as to reduce the time of transfering files from coordinator to workers
-// intermediate := []string{}
-// for _, filename := range files {
-// 	file, err := os.Open(filename)
-// 	if err != nil {
-// 		log.Fatalf("cannot open %v", filename)
-// 	}
-// 	content, err := ioutil.ReadAll(file)
-// 	if err != nil {
-// 		log.Fatalf("cannot read %v", filename)
-// 	}
-// 	file.Close()
-// 	intermediate = append(intermediate, string(content))
-// }
-// fmt.Println(intermediate)
-
-// func MakeCoordinator(files []string, nReduce int) *Coordinator {
-//     c := Coordinator{}
-
-//     // 初始化协调器的字段
-//     c.mapTasks = make([]Task, len(files))
-//     c.reduceTasks = make([]Task, nReduce)
-//     c.mapDone = make([]bool, len(files))
-//     c.reduceDone = make([]bool, nReduce)
-//     c.nReduce = nReduce
-
-//     // 设置 Map 任务的状态为未完成
-//     for i := range c.mapDone {
-//         c.mapDone[i] = false
-//     }
-
-//     // 设置 Reduce 任务的状态为未完成
-//     for i := range c.reduceDone {
-//         c.reduceDone[i] = false
-//     }
-
-//     // 设置 Map 任务和 Reduce 任务的数量
-//     c.totalMapTasks = len(files)
-//     c.totalReduceTasks = nReduce
-
-//     // 启动 RPC 服务器
-//     c.server()
-
-//     return &c
-// }

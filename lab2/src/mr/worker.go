@@ -39,6 +39,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	fileTasks := CallTask()
 	NReduce := CallNReduce()
+
 	// open n Reduce files
 	intermediate := []KeyValue{}
 	for _, filename := range fileTasks {
@@ -55,6 +56,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		kva := mapf(filename, string(content))
 		intermediate = append(intermediate, kva...)
 	}
+
 	// open files for itermediate values
 	reduceOutputFiles := make(map[int]*os.File)
 	for i := 0; i < NReduce; i++ {
@@ -64,9 +66,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			log.Fatalf("cannot create output file %v", filename)
 		}
 		defer outputFile.Close()
-		// 将文件与 Reduce 任务编号关联起来
 		reduceOutputFiles[i] = outputFile
 	}
+
 	// split k,v values to different files by hashes
 	for _, kv := range intermediate {
 		reduceTaskNumber := ihash(kv.Key) % NReduce
@@ -78,6 +80,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			log.Fatalf("error encoding JSON: %v", err)
 		}
 	}
+	// read the intermediate files and reduce them
 	for reduceTaskNumber := 0; reduceTaskNumber < NReduce; reduceTaskNumber++ {
 		intermediate := loadIntermediateData(reduceTaskNumber)
 		sort.Sort(ByKey(intermediate))
@@ -101,47 +104,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			i = j
 		}
 		ofile.Close()
-
 	}
-
-	// sort.Sort(ByKey(intermediate))
-	// // test json store
-	// outputFile, err := os.Create("doodle") // Change "doodle" to your desired output file name
-	// if err != nil {
-	// 	log.Fatalf("cannot create output file")
-	// }
-	// defer outputFile.Close()
-
-	// enc := json.NewEncoder(outputFile)
-	// for _, kv := range intermediate {
-	// 	err := enc.Encode(&kv)
-	// 	if err != nil {
-	// 		log.Fatalf("error encoding JSON: %v", err)
-	// 	}
-	// }
-
-	// oname := "mr-out-1"
-	// ofile, _ := os.Create(oname)
-	// i := 0
-	// for i < len(intermediate) {
-	// 	j := i + 1
-	// 	for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
-	// 		j++
-	// 	}
-	// 	values := []string{}
-	// 	for k := i; k < j; k++ {
-	// 		values = append(values, intermediate[k].Value)
-	// 	}
-	// 	output := reducef(intermediate[i].Key, values)
-
-	// 	// this is the correct format for each line of Reduce output.
-	// 	fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
-
-	// 	i = j
-	// }
-
-	// ofile.Close()
 }
+
 func loadIntermediateData(reduceTaskNumber int) []KeyValue {
 	// Load the intermediate data from the corresponding file for the Reduce task
 	filename := fmt.Sprintf("intermediate_%d.json", reduceTaskNumber)
