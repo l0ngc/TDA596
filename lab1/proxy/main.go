@@ -71,7 +71,6 @@ func proxyHandler(client_conn net.Conn) {
 	default:
 		exceptHandler(client_conn, request)
 	}
-
 }
 
 func exceptHandler(conn net.Conn, request *http.Request) {

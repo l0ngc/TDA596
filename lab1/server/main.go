@@ -129,6 +129,7 @@ func getResponseWrapper(request *http.Request) *http.Response {
 			return response
 		}
 		fileContent := string(content)
+		fmt.Println("File content", content)
 		response := createResponse(http.StatusOK, fileContent, contentTypeMapping[contentType])
 		return response
 	} else {

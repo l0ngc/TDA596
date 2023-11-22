@@ -11,5 +11,5 @@ Steps:
 Usage:
 1. go build main.go
 2. ./main.go 8083
-3. echo -e "GET /resource/ebooks/monk.txt HTTP/1.1\r\nHost: localhost:8080\r\n\r\n" | nc localhost 8083
+3. echo -e "GET /resource/txt/monk.txt HTTP/1.1\r\nHost: localhost:8080\r\n\r\n" | nc localhost 8083
 

@@ -12,6 +12,7 @@ import (
 type Coordinator struct {
 	// Your definitions here.
 	taskFiles []string
+	nReduce   int
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -29,6 +30,10 @@ func (c *Coordinator) GetTask(args *TaskAsk, reply *TaskReply) error {
 	reply.FileNames = c.taskFiles
 	fmt.Println(reply.FileNames)
 	// c.taskFiles = c.taskFiles[1:]
+	return nil
+}
+func (c *Coordinator) GetNReduce(args *ExampleArgs, reply *ExampleReply) error {
+	reply.Y = c.nReduce
 	return nil
 }
 
@@ -61,7 +66,7 @@ func (c *Coordinator) Done() bool {
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
-
+	c.nReduce = nReduce
 	c.taskFiles = files
 
 	c.server()

@@ -27,7 +27,7 @@ Distributed Approach
 $ go build -buildmode=plugin ../mrapps/wc.go
 $ rm mr-out* 
 $ go run -race mrcoordinator.go pg-*.txt
-$ go run -race mrworker.go wc.so
+$ go run mrworker.go wc.so
 $ cat mr-out-* | sort | more
 A 509
 ABOUT 2
@@ -43,3 +43,9 @@ Target files
 We have given you a little code to start you off. 
 
 The "main" routines for the coordinator and worker are in main/mrcoordinator.go and main/mrworker.go; don't change these files. You should put your implementation in mr/coordinator.go, mr/worker.go, and mr/rpc.go.
+
+go build -race -buildmode=plugin -gcflags="all=-N -l" ../mrapps/wc.go
+
+go run -race -gcflags="all=-N -l" mrworker.go wc.so
+
+Anything related to RPC, must be capitalized!!!!!!
