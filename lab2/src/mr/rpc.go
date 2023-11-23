@@ -30,7 +30,12 @@ type TaskAsk struct {
 }
 
 type TaskReply struct {
-	FileNames []string
+	FileName string
+}
+
+type MapTaskReply struct {
+	FileId   int
+	FileName string
 }
 
 // Cook up a unique-ish UNIX-domain socket name

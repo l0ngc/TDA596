@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -11,11 +12,16 @@ import (
 
 type Coordinator struct {
 	// Your definitions here.
-	taskFiles []string
+	taskFiles []MapTask
 	nReduce   int
 }
 
-// Your code here -- RPC handlers for the worker to call.
+// Map Task
+type MapTask struct {
+	FileId   int
+	FileName string
+	Done     bool
+}
 
 // an example RPC handler.
 //
@@ -24,13 +30,40 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 100
 	return nil
 }
-func (c *Coordinator) GetTask(args *TaskAsk, reply *TaskReply) error {
-	// Your code here
-	// start from Map, when all of the Map is finished, then turned into Reduce
-	// now just put ev
-	reply.FileNames = c.taskFiles
-	fmt.Println(reply.FileNames)
-	// c.taskFiles = c.taskFiles[1:]
+
+func (c *Coordinator) GetMapTask(args *TaskAsk, reply *MapTaskReply) error {
+	// 确保还有任务可分配
+	if len(c.taskFiles) == 0 {
+		return errors.New("no more tasks available")
+	}
+	// for _, task := range c.taskFiles {
+	// 	fmt.Println(task.FileId, task.FileName, task.Done)
+	// }
+	// 分配第一个未完成的任务
+	for _, task := range c.taskFiles {
+		if !task.Done {
+			fmt.Println(task.FileId, task.FileName, task.Done)
+			reply.FileId = task.FileId
+			reply.FileName = task.FileName
+			fmt.Println("Assigned task:", reply.FileName)
+			return nil
+		}
+	}
+
+	return errors.New("no pending tasks available")
+}
+
+func (c *Coordinator) DoneMapTask(args *ExampleArgs, reply *ExampleReply) error {
+	doneFileId := args.X
+	fmt.Println("Done task:", doneFileId)
+	for i, task := range c.taskFiles {
+		if task.FileId == doneFileId {
+			c.taskFiles[i].Done = true
+			reply.Y = 0
+			return nil
+		}
+	}
+	reply.Y = 1
 	return nil
 }
 
@@ -58,10 +91,6 @@ func (c *Coordinator) server() {
 func (c *Coordinator) Done() bool {
 	ret := false
 
-	// Your code here.
-	// 这里用来标记一下目前搞定的任务，我觉得应该是coordinator分布任务，然后worker完成任务，然后worker告诉coordinator完成了任务
-	// 然后coordinator就把这个任务标记为完成了，然后等到所有任务都完成了，就返回true
-	// 所以应该有一个标记，来标记要被map的任务，同时标记要被reduce的任务
 	return ret
 }
 
@@ -69,10 +98,24 @@ func (c *Coordinator) Done() bool {
 // main/mrcoordinator.go calls this function.
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
-	c := Coordinator{}
-	c.nReduce = nReduce
-	c.taskFiles = files
+	c := Coordinator{
+		nReduce:   nReduce,
+		taskFiles: make([]MapTask, len(files)),
+	}
+	// init taskFiles
+	for i, file := range files {
+		c.taskFiles[i] = MapTask{FileId: i, FileName: file, Done: false}
+	}
 
-	c.server()
+	c.server() // Assuming this is a method that starts the server.
 	return &c
 }
+
+// func MakeCoordinator(files []string, nReduce int) *Coordinator {
+// 	c := Coordinator{}
+// 	c.nReduce = nReduce
+// 	c.taskFiles = files
+
+// 	c.server()
+// 	return &c
+// }
