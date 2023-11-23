@@ -38,6 +38,17 @@ type MapTaskReply struct {
 	FileName string
 }
 
+type ReduceTaskReply struct {
+	FileId int
+}
+
+type CoorStatusReply struct {
+	NReduce           int
+	NFile             int
+	NUndoneMapTask    int
+	NUndoneReduceTask int
+}
+
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
 // Can't use the current directory since
